@@ -1,152 +1,178 @@
 import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000)
-const renderer = new THREE.WebGLRenderer({canvas: document.querySelector('#main-canvas'),antialias: true,alpha: true})
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 2000);
+const renderer = new THREE.WebGLRenderer({
+    canvas: document.querySelector('#main-frame'),
+    antialias: true,
+    alpha: true
+});
 
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(window.innerWidth, window.innerHeight)
-camera.position.set(0, 0, 45)
-camera.lookAt(0,0,0)
+camera.position.set(0, 5, 55)
 
+const loader = new THREE.TextureLoader();
+const earthTex = loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
+const moonTex = loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg');
 
-const loader = new THREE.TextureLoader()
-const earthMap = loader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
-
-
-const globe = new THREE.Mesh(
-    new THREE.SphereGeometry(10, 64, 64),
-    new THREE.MeshStandardMaterial({ map: earthMap, roughness: 0.8 })
+const earth = new THREE.Mesh(
+    new THREE.SphereGeometry(12, 64, 64),
+    new THREE.MeshStandardMaterial({ map: earthTex, roughness: 0.7 })
 )
-scene.add(globe)
+scene.add(earth)
+
+const moonGroup = new THREE.Group()
+const moon = new THREE.Mesh(
+    new THREE.SphereGeometry(3, 32, 32),
+    new THREE.MeshStandardMaterial({ map: moonTex })
+)
+
+moon.position.set(60, 5, -20)
+moonGroup.add(moon)
+scene.add(moonGroup)
 
 
-const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(10.4, 64, 64),
-    new THREE.MeshLambertMaterial({
-        color: 0x00ccff,
-        transparent: true,
-        opacity: 0.12
-    })
-);
-scene.add(glow)
-
-
-const sun = new THREE.DirectionalLight(0xffffff, 2.5)
-sun.position.set(10, 10, 10)
+const sun = new THREE.DirectionalLight(0xffffff, 3)
+sun.position.set(20, 15, 20)
 scene.add(sun)
-scene.add(new THREE.AmbientLight(0x222222))
+scene.add(new THREE.AmbientLight(0x111111, 2))
 
 
-function createStarfield() {
-    const geo = new THREE.SphereGeometry(0.12, 8, 8)
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffffff })
-    for (let i = 0; i < 400; i++) {
-        const star = new THREE.Mesh(geo, mat)
-        const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(300))
-        star.position.set(x, y, z)
-        scene.add(star)
-    }
+const starGeo = new THREE.BufferGeometry()
+const starCount = 1500
+const starPos = new Float32Array(starCount * 3)
+for(let i=0; i<starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 1000
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3))
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 }))
+scene.add(stars)
+
+
+const orbitalFleet = []
+
+
+function spawnAdvancedSat(lat, lon, alt, id, intel) {
+    const group = new THREE.Group()
+
+    const chassis = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.8, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0x333333 })
+    )
+
+    group.add(chassis);
+
+
+    const solarArrays = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.5, 0.8),
+        new THREE.MeshStandardMaterial({ color: 0x0022ff, side: THREE.DoubleSide })
+    )
+
+    solarArrays.rotation.y = Math.PI/2;
+    group.add(solarArrays);
+
+
+    const comsMast = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 1.5),
+        new THREE.MeshStandardMaterial({ color: 0x999999 })
+    )
+
+    comsMast.position.y = 0.8
+    group.add(comsMast)
+
+
+    const dish = new THREE.Mesh(
+        new THREE.ConeGeometry(0.4, 0.5, 16),
+        new THREE.MeshStandardMaterial({ color: 0xaaaaaa })
+    )
+
+    dish.rotation.x = -Math.PI / 2
+    dish.position.z = 0.8
+    group.add(dish)
+
+
+    const dockingRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.3, 0.05, 8, 24),
+        new THREE.MeshStandardMaterial({ color: 0x00f2ff })
+    )
+
+    dockingRing.position.z = -0.6
+    group.add(dockingRing)
+
+
+    const radius = 12 + alt
+    const p = (90 - lat) * (Math.PI / 180)
+    const t = (lon + 180) * (Math.PI / 180)
+
+
+    group.position.set(
+        -(radius * Math.sin(p) * Math.cos(t)),
+        radius * Math.cos(p),
+        radius * Math.sin(p) * Math.sin(t)
+    );
+
+    group.lookAt(0, 0, 0)
+    group.userData = { id, loc: `${lat}N / ${lon}E`, intel }
+    orbitalFleet.push(group)
+    scene.add(group)
 }
 
-createStarfield()
 
-const orbitalNodes = []
-
-function buildSatellite(lat, lon, height, label, info) {
-    const satGroup = new THREE.Group()
-
-    const frame = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.5, 0.8),
-        new THREE.MeshStandardMaterial({ color: 0x444444 })
-    );
-    satGroup.add(frame)
+spawnAdvancedSat(28.6, 77.2, 5, "DELHI", "Quantum encrypted relay active.")
+spawnAdvancedSat(40.7, -74.0, 7, "GOTHAM", "Deep packet inspection in progress.")
+spawnAdvancedSat(-33.8, 151.2, 4, "SYDNEY", "Tactical link established. Monitoring oceanic thermal anomalies.")
 
 
-    const wings = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.2, 0.6),
-        new THREE.MeshStandardMaterial({ color: 0x0055ff, side: THREE.DoubleSide })
-    );
-    satGroup.add(wings)
+const ray = new THREE.Raycaster()
+const cursor = new THREE.Vector2()
 
-    const antenna = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.04, 0.04, 1),
-        new THREE.MeshStandardMaterial({ color: 0x888888 })
-    );
-    antenna.rotation.x = Math.PI / 2
-    antenna.position.z = 0.5
-    satGroup.add(antenna)
+window.addEventListener('click', (e) => {
+    cursor.x = (e.clientX / window.innerWidth) * 2 - 1
+    cursor.y = -(e.clientY / window.innerHeight) * 2 + 1
 
-    const rad = 10 + height
-    const phi = (90 - lat) * (Math.PI / 180)
-    const theta = (lon + 180) * (Math.PI / 180)
+    ray.setFromCamera(cursor, camera)
+    const hits = ray.intersectObjects(orbitalFleet, true)
 
 
-    satGroup.position.set(
-        -(rad * Math.sin(phi) * Math.cos(theta)),
-        rad * Math.cos(phi),
-        rad * Math.sin(phi) * Math.sin(theta)
-    );
+    if (hits.length > 0) {
+        let active = hits[0].object;
+        while (active.parent && !active.userData.id) active = active.parent
 
-    satGroup.lookAt(0, 0, 0)
-    satGroup.userData = { label, coords: `${lat}° N, ${lon}° E`, info }
 
-    
-    orbitalNodes.push(satGroup);
-    scene.add(satGroup);
-}
-
-buildSatellite(28.6, 77.2, 4, "IN", "Relaying encrypted data packets from Delhi.")
-buildSatellite(40.7, -74.0, 5.5, "US", "Deep space relay node.")
-buildSatellite(-33.8, 151.2, 3, "AU", "Monitoring oceanic atmospheric patterns.")
-
-const raycaster = new THREE.Raycaster()
-const mouse = new THREE.Vector2()
-
-window.addEventListener('click', (event) => {
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera)
-    const intersects = raycaster.intersectObjects(orbitalNodes, true)
-
-    if (intersects.length > 0) {
-        let selected = intersects[0].object;
-        while (selected.parent && !selected.userData.label) {
-            selected = selected.parent;
-        }
-
-        document.getElementById('telemetry-output').innerHTML = `
-            <h2>${selected.userData.label}</h2>
-            <p class="coords">POSITION: ${selected.userData.coords}</p>
-            <p class="details">${selected.userData.info}</p>
+        document.getElementById('output-stream').innerHTML = `
+            <div class="sat-card">
+                <h2>${active.userData.id}</h2>
+                <p class="pos">VIRTUAL_POS: ${active.userData.loc}</p>
+                <p class="bio">${active.userData.intel}</p>
+            </div>
         `;
 
-        orbitalNodes.forEach(node => {
-            node.children[0].material.color.set(0x444444)
-        });
-        selected.children[0].material.color.set(0x00f2ff)
+
+        orbitalFleet.forEach(n => n.children[4].material.emissive.setHex(0x000000))
+        active.children[4].material.emissive.setHex(0x00f2ff)
     }});
 
-function loop() {
-    requestAnimationFrame(loop);
-    
-    globe.rotation.y += 0.001
-    glow.rotation.y += 0.001
-    
-    orbitalNodes.forEach(sat => {
-        sat.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.003)
-        sat.lookAt(0, 0, 0)
-    });
 
+function tick() {
+    requestAnimationFrame(tick);
+    
+    earth.rotation.y += 0.001;
+    moonGroup.rotation.y += 0.002;
+    moon.rotation.y += 0.005;
+    
+
+    orbitalFleet.forEach(s => {
+        s.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.0025);
+        s.lookAt(0, 0, 0)
+    });
     renderer.render(scene, camera)
 }
 
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-})
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-loop();
+tick();
+
 
