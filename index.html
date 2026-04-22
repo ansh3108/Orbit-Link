@@ -7,18 +7,21 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <canvas id="renderCanvas"></canvas>
-    <div class="hud-overlay">
-        <aside class="glass-panel">
+    <canvas id="bg"></canvas>
+
+    <div class="hud">
+        <aside class="sidebar">
             <h1>ORBIT-LINK</h1>
-            <div id="data-stream">
+            <div id="telemetry">
                 <hr>
-                <div id="active-satellite">
-                    <p>Select orbital node to decode...</p>
+                <div id="data-panel">
+                    <p>Select satelite to decode...</p>
                 </div>
             </div>
         </aside>
     </div>
-    <script src="main.js"></script>
+
+    <script type="module" src="main.js"></script>
 </body>
 </html>
+

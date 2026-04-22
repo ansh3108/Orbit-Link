@@ -1,157 +1,146 @@
-const canvas = document.getElementById('renderCanvas');
-const ctx = canvas.getContext('2d');
-const sidebar = document.getElementById('active-satellite');
+import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 
-let width, height, centerX, centerY;
-let angleY = 0;
-let angleX = 0.2;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg'), antialias: true})
 
-const satellites = [
-    {lat: 28.6, lon: 77.2, name: "DELHI", desc: "Stable orbit over Delhi."},
-    {lat: 40.7, lon: -74.0, name: "NYC", desc: "Data relay node."},
-    {lat: -33.8, lon: 151.2, name: "SYD", desc: "Atmospheric monitor."},
-    {lat: 51.5, lon: -0.1, name: "LDN", desc: "Encrypted secure line"}
-];
 
-const stars = Array.from({length: 400}, () => ({
-    x: (Math.random() - 0.5) * 2000,
-    y: (Math.random() - 0.5) * 2000,
-    z: (Math.random() - 0.5) * 2000,
-}));
+renderer.setPixelRatio(window.devicePixelRatio)
+renderer.setSize(window.innerWidth, window.innerHeight)
+camera.position.setZ(35)
 
-function resize() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-    centerX = width / 2;
-    centerY = height / 2;
+
+const textureLoader = new THREE.TextureLoader()
+const earthTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
+
+const earth = new THREE.Mesh(
+    new THREE.SphereGeometry(10, 64, 64),
+    new THREE.MeshStandardMaterial({ map: earthTexture })
+)
+
+scene.add(earth);
+
+const atmos = new THREE.Mesh(
+    new THREE.SphereGeometry(10.3, 64, 64),
+    new THREE.MeshLambertMaterial({
+        color: 0x00aaff,
+        transparent: true,
+        opacity: 0.15
+    }));
+
+scene.add(atmos);
+
+const sunLight = new THREE.PointLight(0xffffff, 2000)
+sunLight.position.set(25, 15, 25)
+const ambient = new THREE.AmbientLight(0x404040, 2)
+scene.add(sunLight, ambient)
+
+
+function addStar() {
+    const star = new THREE.Mesh(
+        new THREE.SphereGeometry(0.1, 12, 12),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(250))
+    star.position.set(x, y, z)
+    scene.add(star)
 }
 
-window.addEventListener('resize', resize);
-resize();
+Array(350).fill().forEach(addStar);
 
-function project(x, y, z) {
-    const scale = 800 / (800 + z);
-    return {
-        x: x * scale + centerX,
-        y: y * scale + centerY,
-        scale: scale
-    };
+
+const sats = [];
+function createSatModel(lat, lon, alt, name, data) {
+    const group = new THREE.Group()
+
+    const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.6, 0.6),
+        new THREE.MeshStandardMaterial({ color: 0x888888 })
+    );
+    group.add(body);
+
+
+    const panelGeo = new THREE.PlaneGeometry(1.5, 0.5)
+    const panelMat = new THREE.MeshStandardMaterial({ color: 0x0044ff, side: THREE.DoubleSide })
+    const p1 = new THREE.Mesh(panelGeo, panelMat)
+    p1.position.x = 1.1;
+    const p2 = new THREE.Mesh(panelGeo, panelMat)
+    p2.position.x = -1.1;
+    group.add(p1, p2)
+
+    const ant = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 0.8),
+        new THREE.MeshStandardMaterial({ color: 0xcccccc })
+    );
+    ant.position.y = 0.5;
+    group.add(ant)
+
+
+    const dist = 10 + alt;
+    const phi = (90 - lat) * (Math.PI / 180)
+    const theta = (lon + 180) * (Math.PI / 180)
+
+
+    group.position.set(
+        -(dist * Math.sin(phi) * Math.cos(theta)),
+        dist * Math.cos(phi),
+        dist * Math.sin(phi) * Math.sin(theta)
+    );
+
+    
+    group.lookAt(0, 0, 0);
+    group.userData = { name, data };
+    sats.push(group);
+    scene.add(group);
+
 }
 
-function rotateY(x, z, theta) {
-    const cos = Math.cos(theta);
-    const sin = Math.sin(theta);
-    return [x * cos - z * sin, x * sin + z * cos];
-}
+createSatModel(28.6, 77.2, 3, "IND-CORE", "Primary relay for Southeast Asia.");
+createSatModel(40.7, -74.0, 4, "US-WEST", "Deep space packet inspector.");
+createSatModel(-33.8, 151.2, 3.5, "AUS-LINK", "Oceanic climate monitor.");
 
-function rotateX(y, z, theta) {
-    const cos = Math.cos(theta);
-    const sin = Math.sin(theta);
-    return [y * cos - z * sin, y * sin + z * cos];
-}
 
-function draw() {
-    ctx.fillStyle = '#050508';
-    ctx.fillRect(0, 0, width, height);
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
 
-    angleY += 0.003;
 
-    ctx.fillStyle = "white";
-    stars.forEach(star => {
-        let [sx, sz] = rotateY(star.x, star.z, angleY * 0.1);
-        let p = project(sx, star.y, sz);
-        if (p.scale > 0) {
-            ctx.globalAlpha = Math.max(0, p.scale * 0.5);
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
-            ctx.fill();
+window.addEventListener('click', (e) => {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(sats, true);
+
+
+    if (hits.length > 0) {
+        let selected = hits[0].object;
+        while (selected.parent && !selected.userData.name) {
+            selected = selected.parent;
         }
+        document.getElementById('data-panel').innerHTML = `
+            <h2>${selected.userData.name}</h2>
+            <p>${selected.userData.data}</p>
+        `;
+    }});
+
+
+function animate() {
+    requestAnimationFrame(animate);
+    earth.rotation.y += 0.0015;
+    atmos.rotation.y += 0.0012;
+    sats.forEach(s => {
+        s.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.002);
+        s.lookAt(0, 0, 0);
     });
-
-    const radius = 180;
-    const segments = 24;
-    ctx.strokeStyle = 'rgba(0, 242, 255, 0.15)';
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 1;
-
-    for (let i = 0; i <= segments; i++) {
-        let lat = (i / segments) * Math.PI - Math.PI / 2;
-        ctx.beginPath();
-        for (let j = 0; j <= segments; j++) {
-            let lon = (j / segments) * 2 * Math.PI;
-
-            let x = radius * Math.cos(lat) * Math.cos(lon);
-            let y = radius * Math.sin(lat);
-            let z = radius * Math.cos(lat) * Math.sin(lon);
-
-            let [rx, rz] = rotateY(x, z, angleY);
-            let [ry, finalZ] = rotateX(y, rz, angleX);
-            let p = project(rx, ry, finalZ);
-
-            if (j === 0) ctx.moveTo(p.x, p.y);
-            else ctx.lineTo(p.x, p.y);
-        }
-        ctx.stroke();
-    }
-
-    satellites.forEach(sat => {
-        const phi = (90 - sat.lat) * (Math.PI / 180);
-        const theta = (sat.lon + 180) * (Math.PI / 180);
-        const r = radius + 40;
-
-        let x = r * Math.sin(phi) * Math.cos(theta);
-        let y = r * Math.cos(phi);
-        let z = r * Math.sin(phi) * Math.sin(theta);
-
-        let [rx, rz] = rotateY(x, z, angleY);
-        let [ry, finalZ] = rotateX(y, rz, angleX);
-        let p = project(rx, ry, finalZ);
-
-        if (finalZ > -radius) {
-            ctx.fillStyle = "#00f2ff";
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "#00f2ff";
-            ctx.beginPath();
-            ctx.rect(p.x - 3, p.y - 3, 6, 6);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.font = "10px Courier New";
-            ctx.fillText(sat.name, p.x + 10, p.y);
-        }
-    });
-
-    requestAnimationFrame(draw);
+    renderer.render(scene, camera);
 }
 
-canvas.addEventListener('mousedown', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    satellites.forEach(sat => {
-        const phi = (90 - sat.lat) * (Math.PI / 180);
-        const theta = (sat.lon + 180) * (Math.PI / 180);
-        const r = 180 + 40;
-
-        let x = r * Math.sin(phi) * Math.cos(theta);
-        let y = r * Math.cos(phi);
-        let z = r * Math.sin(phi) * Math.sin(theta);
-
-        let [rx, rz] = rotateY(x, z, angleY);
-        let [ry, finalZ] = rotateX(y, rz, angleX);
-        let p = project(rx, ry, finalZ);
-
-        const dist = Math.sqrt((mx - p.x) ** 2 + (my - p.y) ** 2);
-        if (dist < 20) {
-            sidebar.innerHTML = `
-                <h2>${sat.name}</h2>
-                <p>COORDINATES: ${sat.lat}, ${sat.lon}</p>
-                <p>MESSAGE: ${sat.desc}</p>
-                <p class="status">LINK ESTABLISHED</p>
-            `;
-        }
-    });
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-draw();
 
+animate();

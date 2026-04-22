@@ -1,69 +1,67 @@
-body, html {
+body, html{
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background-color: #050508;
-    color: #00f2ff;
-    font-family: 'Courier New', Courier, monospace;
+    background-color: #000;
+    color: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-
-#renderCanvas {
-    display: block;
-}
-
-.hud-overlay {
-    position: absolute;
+#bg{
+    position: fixed;
     top: 0;
     left: 0;
+    outline: none;
+}
+.hud {
+    position: absolute;
+    top: 0;
+    right: 0;
     width: 100%;
     height: 100%;
     pointer-events: none;
     display: flex;
     justify-content: flex-end;
-    padding: 20px;
+    padding: 25px;
     box-sizing: border-box;
 }
-
-.glass-panel {
+.sidebar {
     width: 320px;
     height: 100%;
-    background: rgba(10, 20, 30, 0.4);
+    background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
-    border-left: 1px solid rgba(0, 242, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
     padding: 30px;
     pointer-events: auto;
-    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
-
-h1 {
-    font-size: 1.2rem;
-    letter-spacing: 5px;
+h1{
+    font-size: 1.4rem;
+    letter-spacing: 4px;
     margin-bottom: 20px;
-    text-shadow: 0 0 10px #00f2ff;
-}
+    color: #00d4ff;
 
-.status {
-    font-size: 0.8rem;
+}
+.status{
+    font-size: 0.75rem;
     color: #00ff88;
+    font-weight: bold;
 }
-
-#active-satellite h2 {
-    font-size: 1rem;
-    margin-top: 40px;
-    color: #fff;
+#data-panel h2 {
+    font-size: 1.1rem;
+    color: #00d4ff;
+    margin-top: 30px;
 }
-
-#active-satellite p {
-    font-size: 0.85rem;
+#data-panel p {
+    font-size: 0.9rem;
     line-height: 1.6;
-    opacity: 0.8;
+    color: #ccc;
 }
-
 hr {
     border: 0;
-    border-top: 1px solid rgba(0, 242, 255, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin: 20px 0;
 }
