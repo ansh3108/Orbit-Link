@@ -7,17 +7,25 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <canvas id="bg"></canvas>
+    <canvas id="main-canvas"></canvas>
 
-    <div class="hud">
-        <aside class="sidebar">
-            <h1>ORBIT-LINK</h1>
-            <div id="telemetry">
-                <hr>
-                <div id="data-panel">
-                    <p>Select satelite to decode...</p>
+    <div class="interface">
+        <aside class="control-panel">
+            <header>
+                <h1>ORBIT-LINK</h1>
+                <div class="system-status">
+                    <span class="pulse"></span>
                 </div>
-            </div>
+            </header>
+
+            <section id="telemetry-output">
+                <div class="placeholder-text">
+                    <p>WATING FOR UPLINK...</p>
+                    <p class="hint">CLICK ON A SATELLITE TO INITIALIZE DECODING</p>
+                </div>
+            </section>
+
+            
         </aside>
     </div>
 
